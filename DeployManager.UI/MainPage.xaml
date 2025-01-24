@@ -3,11 +3,31 @@
              x:Class="DeployManager.UI.MainPage">
     <VerticalStackLayout Padding="20" Spacing="20">
 
+        <!-- Repository Path -->
+        <VerticalStackLayout Spacing="5">
+            <Label Text="Repository Path:" />
+            <Entry x:Name="RepoPathEntry"
+                   Placeholder="Enter Git repository path"
+                   Unfocused="RepoPathEntry_Unfocused" />
+        </VerticalStackLayout>
+
+        <!-- Branch Name -->
+        <VerticalStackLayout Spacing="5">
+            <Label Text="Branch Name:" />
+            <Entry x:Name="BranchNameEntry"
+                   Placeholder="Enter Git branch name"
+                   Unfocused="BranchNameEntry_Unfocused" />
+        </VerticalStackLayout>
+
         <!-- Environment Picker -->
         <Picker x:Name="EnvironmentPicker"
                 Title="Select environment"
-                WidthRequest="200">
+                WidthRequest="200"
+                SelectedIndex="0"
+                SelectedIndexChanged="EnvironmentPicker_SelectedIndexChanged">
             <Picker.Items>
+                <x:String>dev-test</x:String>
+                <x:String>traffic-test</x:String>
                 <x:String>test</x:String>
                 <x:String>preprod</x:String>
                 <x:String>prod</x:String>
@@ -27,6 +47,7 @@
         <!-- Status Output -->
         <Editor x:Name="StatusEditor"
                 IsReadOnly="True"
-                HeightRequest="200" />
+                FontFamily="Consolas"
+                HeightRequest="300" />
     </VerticalStackLayout>
 </ContentPage>

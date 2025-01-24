@@ -1,50 +1,159 @@
-﻿namespace DeployManager.UI
+﻿using DeployManager.GitHelper;
+
+namespace DeployManager.UI
 {
-    public partial class MainPage : ContentPage
+    public partial class MainPage
     {
-        public MainPage()
+        private readonly IGitService _gitService;
+        private ConfigService _configService;
+
+        public MainPage(IGitService gitService, ConfigService configService)
         {
             InitializeComponent();
+            _gitService = gitService;
+            _configService = configService;
+
+            // Load configuration on startup
+            LoadConfigurationAsync();
+
+            // Disable buttons if invalid configuration
+            _ = ValidateInputsAsync();
+        }
+
+        private async void LoadConfigurationAsync()
+        {
+            _configService = ConfigService.LoadConfig();
+            RepoPathEntry.Text = _configService.RepoPath;
+            BranchNameEntry.Text = _configService.BranchName;
+
+            // Restore the selected environment
+            if (!string.IsNullOrEmpty(_configService.SelectedEnvironment))
+            {
+                EnvironmentPicker.SelectedItem = _configService.SelectedEnvironment;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_configService.RepoPath))
+            {
+                _gitService.Configure(_configService.RepoPath, _configService.BranchName);
+                try
+                {
+                    StatusEditor.Text = "validating...";
+                    await _gitService.Prepare();
+                    StatusEditor.Text = "Repository is valid.";
+                }
+                catch (Exception ex)
+                {
+                    StatusEditor.Text = ex.Message;
+                }
+            }
+        }
+
+        private void SaveConfiguration()
+        {
+            _configService.RepoPath = RepoPathEntry.Text;
+            _configService.BranchName = BranchNameEntry.Text;
+
+            // Save the selected environment
+            _configService.SelectedEnvironment = EnvironmentPicker.SelectedItem?.ToString() ?? "";
+
+            _configService.SaveConfig();
+        }
+
+        private async Task ValidateInputsAsync()
+        {
+            StatusEditor.Text = "validating...";
+
+            var repoPathValid = !string.IsNullOrWhiteSpace(RepoPathEntry.Text);
+            var branchNameValid = !string.IsNullOrWhiteSpace(BranchNameEntry.Text);
+            var environmentSelected = EnvironmentPicker.SelectedItem != null;
+
+            // Validate the repository path by calling GitService.Prepare
+            if (repoPathValid && branchNameValid)
+            {
+                try
+                {
+                    _gitService.Configure(RepoPathEntry.Text, BranchNameEntry.Text);
+                    await _gitService.Prepare();
+                    StatusEditor.Text = "Repository is valid.";
+                }
+                catch (Exception ex)
+                {
+                    StatusEditor.Text = ex.Message;
+                    repoPathValid = false;
+                }
+            }
+
+            GetStatusButton.IsEnabled = repoPathValid && environmentSelected;
+            DeployButton.IsEnabled = repoPathValid && environmentSelected;
         }
 
         private async void OnGetStatusClicked(object sender, EventArgs e)
         {
-            var environment = EnvironmentPicker.SelectedItem?.ToString();
-            if (string.IsNullOrWhiteSpace(environment))
-            {
-                await DisplayAlert("Error", "Please select an environment.", "OK");
-                return;
-            }
-
             try
             {
-                var commits = await GitHelper.GetStatus(environment);
-                StatusEditor.Text = string.Join(Environment.NewLine, commits);
+                StatusEditor.Text = "Getting status...";
+                await _gitService.Prepare();
+                var environment = EnvironmentPicker.SelectedItem.ToString()!;
+                var commits = await _gitService.GetStatus(environment);
+                StatusEditor.Text = commits.Count == 0 ? "Up to date!" : string.Join(Environment.NewLine, commits);
             }
             catch (Exception ex)
             {
-                StatusEditor.Text = $"Error: {ex.Message}";
+                StatusEditor.Text = ex.Message;
             }
         }
 
         private async void OnDeployClicked(object sender, EventArgs e)
         {
-            var environment = EnvironmentPicker.SelectedItem?.ToString();
-            if (string.IsNullOrWhiteSpace(environment))
-            {
-                await DisplayAlert("Error", "Please select an environment.", "OK");
-                return;
-            }
-
             try
             {
-                await GitHelper.Deploy(environment);
+                StatusEditor.Text = "Deploying...";
+                await _gitService.Prepare();
+                var environment = EnvironmentPicker.SelectedItem.ToString()!;
+                await _gitService.Deploy(environment);
                 StatusEditor.Text = $"Deploy to {environment} completed.";
             }
             catch (Exception ex)
             {
-                StatusEditor.Text = $"Error: {ex.Message}";
+                StatusEditor.Text = ex.Message;
             }
+        }
+
+        private async void RepoPathEntry_Unfocused(object sender, FocusEventArgs e)
+        {
+            StatusEditor.Text = "validating...";
+            _gitService.Configure(RepoPathEntry.Text, BranchNameEntry.Text);
+
+            try
+            {
+                await _gitService.Prepare();
+                StatusEditor.Text = "Repository is valid.";
+            }
+            catch (Exception ex)
+            {
+                StatusEditor.Text = ex.Message;
+            }
+
+            SaveConfiguration();
+            await ValidateInputsAsync();
+        }
+
+        private async void BranchNameEntry_Unfocused(object sender, FocusEventArgs e)
+        {
+            SaveConfiguration();
+            await ValidateInputsAsync();
+        }
+
+        private async void EnvironmentPicker_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SaveConfiguration();
+            await ValidateInputsAsync();
+        }
+
+        protected override void OnDisappearing()
+        {
+            SaveConfiguration();
+            base.OnDisappearing();
         }
     }
 }

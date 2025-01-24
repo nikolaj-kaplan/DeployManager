@@ -1,19 +1,23 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DeployManager.GitHelper;
+using Microsoft.Extensions.Logging;
 
 namespace DeployManager.UI
 {
-    public static class MauiProgram
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
     {
-        public static MauiApp CreateMauiApp()
-        {
-            var builder = MauiApp.CreateBuilder();
-            builder
-                .UseMauiApp<App>()
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                });
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+            });
+
+        // Register the service for DI
+        builder.Services.AddSingleton<IGitService, GitService>();
+        builder.Services.AddSingleton<ConfigService>();
 
 #if DEBUG
     		builder.Logging.AddDebug();

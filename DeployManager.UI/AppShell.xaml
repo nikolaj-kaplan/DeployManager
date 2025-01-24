@@ -8,7 +8,7 @@
     Title="DeployManager.UI">
 
     <ShellContent
-        Title="Home"
+        Title="DR - Status and deploy"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 
