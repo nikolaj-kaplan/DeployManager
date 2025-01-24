@@ -1,0 +1,32 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DeployManager.UI.MainPage">
+    <VerticalStackLayout Padding="20" Spacing="20">
+
+        <!-- Environment Picker -->
+        <Picker x:Name="EnvironmentPicker"
+                Title="Select environment"
+                WidthRequest="200">
+            <Picker.Items>
+                <x:String>test</x:String>
+                <x:String>preprod</x:String>
+                <x:String>prod</x:String>
+            </Picker.Items>
+        </Picker>
+
+        <!-- Buttons -->
+        <HorizontalStackLayout Spacing="10">
+            <Button x:Name="GetStatusButton"
+                    Text="Get Status"
+                    Clicked="OnGetStatusClicked" />
+            <Button x:Name="DeployButton"
+                    Text="Deploy"
+                    Clicked="OnDeployClicked" />
+        </HorizontalStackLayout>
+
+        <!-- Status Output -->
+        <Editor x:Name="StatusEditor"
+                IsReadOnly="True"
+                HeightRequest="200" />
+    </VerticalStackLayout>
+</ContentPage>
