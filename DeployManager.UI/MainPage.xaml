@@ -42,12 +42,22 @@
             <Button x:Name="DeployButton"
                     Text="Deploy"
                     Clicked="OnDeployClicked" />
+            <!-- Activity Indicator -->
+            <ActivityIndicator x:Name="ActivityIndicator"
+                               IsRunning="False"
+                               IsVisible="False"
+                               VerticalOptions="CenterAndExpand"
+                               HorizontalOptions="CenterAndExpand" />
+
         </HorizontalStackLayout>
 
+        
         <!-- Status Output -->
-        <Editor x:Name="StatusEditor"
-                IsReadOnly="True"
-                FontFamily="Consolas"
-                HeightRequest="300" />
-    </VerticalStackLayout>
+        <ScrollView>
+            <Label x:Name="StatusEditor"
+                   TextType="Html"
+                   FontFamily="Consolas"
+                   HeightRequest="300" />
+        </ScrollView>
+        </VerticalStackLayout>
 </ContentPage>

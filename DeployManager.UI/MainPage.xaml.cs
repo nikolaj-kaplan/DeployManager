@@ -1,18 +1,33 @@
 ﻿using DeployManager.GitHelper;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace DeployManager.UI
 {
     public partial class MainPage
     {
-        private readonly IGitService _gitService;
+        private readonly GitService _gitService;
         private ConfigService _configService;
 
-        public MainPage(IGitService gitService, ConfigService configService)
+        public MainPage(GitService gitService, ConfigService configService)
         {
             InitializeComponent();
             _gitService = gitService;
             _configService = configService;
 
+
+            _gitService.GitCommandStarted += (sender, args) =>
+            {
+                StatusEditor.Text += "\n>git " + args.Arguments + "...";
+                ActivityIndicator.IsRunning = true;
+                ActivityIndicator.IsVisible = true;
+            };
+            _gitService.GitCommandFinished += (sender, args) =>
+            {
+                StatusEditor.Text += " " + (args.ExitCode == 0 ? "ok." : "error.");
+                ActivityIndicator.IsRunning = false;
+                ActivityIndicator.IsVisible = false;
+            };
             // Load configuration on startup
             LoadConfigurationAsync();
 
@@ -23,6 +38,8 @@ namespace DeployManager.UI
         private async void LoadConfigurationAsync()
         {
             _configService = ConfigService.LoadConfig();
+
+
             RepoPathEntry.Text = _configService.RepoPath;
             BranchNameEntry.Text = _configService.BranchName;
 
@@ -94,8 +111,34 @@ namespace DeployManager.UI
                 StatusEditor.Text = "Getting status...";
                 await _gitService.Prepare();
                 var environment = EnvironmentPicker.SelectedItem.ToString()!;
-                var commits = await _gitService.GetStatus(environment);
-                StatusEditor.Text = commits.Count == 0 ? "Up to date!" : string.Join(Environment.NewLine, commits);
+                var status = await _gitService.GetStatus(environment);
+
+                var statusBuilder = new StringBuilder();
+
+                if (status.CurrentCommit != null)
+                {
+                    statusBuilder.AppendLine("<strong>Newest commit deployed:</strong>");
+                    statusBuilder.AppendLine($"    {status.CurrentCommit.Hash} | {status.CurrentCommit.Date:yyyy-MM-dd HH:mm:ss} | {status.CurrentCommit.Author} | {status.CurrentCommit.Message}");
+                }
+                else
+                {
+                    statusBuilder.AppendLine("No deployed commit found.");
+                }
+
+                if (status.PendingCommits.Any())
+                {
+                    statusBuilder.AppendLine($"\n<strong>Missing commits from {_configService.BranchName}:</strong>");
+                    foreach (var commit in status.PendingCommits)
+                    {
+                        statusBuilder.AppendLine($"    {commit.Hash} | {commit.Date:yyyy-MM-dd HH:mm:ss} | {commit.Author} | {commit.Message}");
+                    }
+                }
+                else
+                {
+                    statusBuilder.AppendLine("\n<strong>All commits are deployed.</strong>");
+                }
+
+                StatusEditor.Text = statusBuilder.ToString();
             }
             catch (Exception ex)
             {

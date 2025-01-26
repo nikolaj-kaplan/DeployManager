@@ -16,7 +16,7 @@ public static class MauiProgram
             });
 
         // Register the service for DI
-        builder.Services.AddSingleton<IGitService, GitService>();
+        builder.Services.AddSingleton<GitService>();
         builder.Services.AddSingleton<ConfigService>();
 
 #if DEBUG
