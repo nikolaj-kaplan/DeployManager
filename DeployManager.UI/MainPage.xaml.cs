@@ -1,5 +1,4 @@
 ﻿using DeployManager.GitHelper;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DeployManager.UI
@@ -15,16 +14,15 @@ namespace DeployManager.UI
             _gitService = gitService;
             _configService = configService;
 
-
-            _gitService.GitCommandStarted += (sender, args) =>
+            _gitService.GitCommandStarted += (_, args) =>
             {
-                StatusEditor.Text += "\n>git " + args.Arguments + "...";
+                AppendToStatusEditor($"<br/>&gt; git {args.Arguments}...");
                 ActivityIndicator.IsRunning = true;
                 ActivityIndicator.IsVisible = true;
             };
-            _gitService.GitCommandFinished += (sender, args) =>
+            _gitService.GitCommandFinished += (_, args) =>
             {
-                StatusEditor.Text += " " + (args.ExitCode == 0 ? "ok." : "error.");
+                AppendToStatusEditor($"&nbsp;{(args.ExitCode == 0 ? "ok." : "error.")}");
                 ActivityIndicator.IsRunning = false;
                 ActivityIndicator.IsVisible = false;
             };
@@ -39,7 +37,6 @@ namespace DeployManager.UI
         {
             _configService = ConfigService.LoadConfig();
 
-
             RepoPathEntry.Text = _configService.RepoPath;
             BranchNameEntry.Text = _configService.BranchName;
 
@@ -51,16 +48,16 @@ namespace DeployManager.UI
 
             if (!string.IsNullOrWhiteSpace(_configService.RepoPath))
             {
-                _gitService.Configure(_configService.RepoPath, _configService.BranchName);
+                _gitService.Configure(_configService.RepoPath);
                 try
                 {
-                    StatusEditor.Text = "validating...";
+                    AppendToStatusEditor("<p>validating...</p>", true);
                     await _gitService.Prepare();
-                    StatusEditor.Text = "Repository is valid.";
+                    AppendToStatusEditor("<p>Repository is valid.</p>");
                 }
                 catch (Exception ex)
                 {
-                    StatusEditor.Text = ex.Message;
+                    AppendToStatusEditor($"<p>{ex.Message}</p>, true");
                 }
             }
         }
@@ -78,7 +75,7 @@ namespace DeployManager.UI
 
         private async Task ValidateInputsAsync()
         {
-            StatusEditor.Text = "validating...";
+            AppendToStatusEditor("<p>validating...</p>", true);
 
             var repoPathValid = !string.IsNullOrWhiteSpace(RepoPathEntry.Text);
             var branchNameValid = !string.IsNullOrWhiteSpace(BranchNameEntry.Text);
@@ -89,13 +86,13 @@ namespace DeployManager.UI
             {
                 try
                 {
-                    _gitService.Configure(RepoPathEntry.Text, BranchNameEntry.Text);
+                    _gitService.Configure(RepoPathEntry.Text);
                     await _gitService.Prepare();
-                    StatusEditor.Text = "Repository is valid.";
+                    AppendToStatusEditor("<p>Repository is valid.</p>", true);
                 }
                 catch (Exception ex)
                 {
-                    StatusEditor.Text = ex.Message;
+                    AppendToStatusEditor($"<p>{ex.Message}</p>", true);
                     repoPathValid = false;
                 }
             }
@@ -108,41 +105,80 @@ namespace DeployManager.UI
         {
             try
             {
-                StatusEditor.Text = "Getting status...";
+                AppendToStatusEditor("<p>Getting status...</p>", true);
                 await _gitService.Prepare();
                 var environment = EnvironmentPicker.SelectedItem.ToString()!;
-                var status = await _gitService.GetStatus(environment);
+                var branch = BranchNameEntry.Text;
+                var status = await _gitService.GetStatus(environment, branch);
 
                 var statusBuilder = new StringBuilder();
 
                 if (status.CurrentCommit != null)
                 {
-                    statusBuilder.AppendLine("<strong>Newest commit deployed:</strong>");
-                    statusBuilder.AppendLine($"    {status.CurrentCommit.Hash} | {status.CurrentCommit.Date:yyyy-MM-dd HH:mm:ss} | {status.CurrentCommit.Author} | {status.CurrentCommit.Message}");
+                    statusBuilder.AppendLine("<p><strong>Newest commit deployed:</strong></p>");
+                    statusBuilder.AppendLine($"<p>{status.CurrentCommit.Hash} | {status.CurrentCommit.Date:yyyy-MM-dd HH:mm:ss} | {status.CurrentCommit.Author} | {status.CurrentCommit.Message}</p>");
                 }
                 else
                 {
-                    statusBuilder.AppendLine("No deployed commit found.");
+                    statusBuilder.AppendLine("<p>No deployed commit found.</p>");
                 }
 
                 if (status.PendingCommits.Any())
                 {
-                    statusBuilder.AppendLine($"\n<strong>Missing commits from {_configService.BranchName}:</strong>");
+                    statusBuilder.AppendLine($"<p><strong>Missing commits from \"{branch}\":</strong></p>");
+                    statusBuilder.AppendLine("<ul>");
                     foreach (var commit in status.PendingCommits)
                     {
-                        statusBuilder.AppendLine($"    {commit.Hash} | {commit.Date:yyyy-MM-dd HH:mm:ss} | {commit.Author} | {commit.Message}");
+                        statusBuilder.AppendLine($"<li>{commit.Hash} | {commit.Date:yyyy-MM-dd HH:mm:ss} | {commit.Author} | {commit.Message}</li>");
                     }
+                    statusBuilder.AppendLine("</ul>");
                 }
                 else
                 {
-                    statusBuilder.AppendLine("\n<strong>All commits are deployed.</strong>");
+                    statusBuilder.AppendLine($"<p><strong>All commits are deployed. The environment \"{environment}\" is up to date based on the branch \"{branch}\"</strong></p>");
                 }
 
-                StatusEditor.Text = statusBuilder.ToString();
+                AppendToStatusEditor(statusBuilder.ToString(), true);
             }
             catch (Exception ex)
             {
-                StatusEditor.Text = ex.Message;
+                AppendToStatusEditor($"<p>{ex.Message}</p>");
+            }
+        }
+
+        private void StatusEditor_Navigating(object sender, WebNavigatingEventArgs e)
+        {
+            // Check if the navigation is triggered by an external link
+            if (Uri.TryCreate(e.Url, UriKind.Absolute, out var uri))
+            {
+                if(uri.Scheme != "http" && uri.Scheme != "https")
+                {
+                    return;
+                }
+
+                e.Cancel = true; // Prevent the WebView from navigating
+                try
+                {
+                    // Open the link in the default browser
+#if ANDROID
+            var intent = new Android.Content.Intent(Android.Content.Intent.ActionView, Android.Net.Uri.Parse(uri.ToString()));
+            Android.App.Application.Context.StartActivity(intent);
+#elif IOS
+            UIKit.UIApplication.SharedApplication.OpenUrl(new Foundation.NSUrl(uri.ToString()));
+#elif WINDOWS
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = uri.ToString(),
+                        UseShellExecute = true
+                    };
+                    System.Diagnostics.Process.Start(psi);
+#endif
+                }
+                catch (Exception ex)
+                {
+                    // Handle errors if needed
+                    Console.WriteLine($"Failed to open URL: {ex.Message}");
+                }
             }
         }
 
@@ -150,31 +186,33 @@ namespace DeployManager.UI
         {
             try
             {
-                StatusEditor.Text = "Deploying...";
+                AppendToStatusEditor("<p>Deploying...</p>", true);
                 await _gitService.Prepare();
                 var environment = EnvironmentPicker.SelectedItem.ToString()!;
-                await _gitService.Deploy(environment);
-                StatusEditor.Text = $"Deploy to {environment} completed.";
+                var branch = BranchNameEntry.Text;
+
+                await _gitService.Deploy(environment, branch);
+                AppendToStatusEditor($"<p>Deploy to {environment} completed.</p>");
             }
             catch (Exception ex)
             {
-                StatusEditor.Text = ex.Message;
+                AppendToStatusEditor($"<p>{ex.Message}</p>");
             }
         }
 
         private async void RepoPathEntry_Unfocused(object sender, FocusEventArgs e)
         {
-            StatusEditor.Text = "validating...";
-            _gitService.Configure(RepoPathEntry.Text, BranchNameEntry.Text);
+            AppendToStatusEditor("<p>validating...</p>", true);
+            _gitService.Configure(RepoPathEntry.Text);
 
             try
             {
                 await _gitService.Prepare();
-                StatusEditor.Text = "Repository is valid.";
+                AppendToStatusEditor("<p>Repository is valid.</p>");
             }
             catch (Exception ex)
             {
-                StatusEditor.Text = ex.Message;
+                AppendToStatusEditor($"<p>{ex.Message}</p>");
             }
 
             SaveConfiguration();
@@ -191,6 +229,21 @@ namespace DeployManager.UI
         {
             SaveConfiguration();
             await ValidateInputsAsync();
+        }
+
+        private void AppendToStatusEditor(string htmlContent, bool clear = false)
+        {
+            const string baseHtml = "<html><head><style>body { font-family: monospace; }</style></head><body></body></html>";
+
+            if (clear || StatusEditor.Source is not HtmlWebViewSource htmlSource)
+            {
+                StatusEditor.Source = new HtmlWebViewSource { Html = baseHtml.Replace("</body>", htmlContent + "</body>") };
+                return;
+            }
+
+            var currentHtml = htmlSource.Html ?? baseHtml;
+            var updatedHtml = currentHtml.Replace("</body>", htmlContent + "</body>");
+            StatusEditor.Source = new HtmlWebViewSource { Html = updatedHtml };
         }
 
         protected override void OnDisappearing()

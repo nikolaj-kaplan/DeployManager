@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace DeployManager.GitHelper;
@@ -7,15 +6,13 @@ namespace DeployManager.GitHelper;
 public class GitService
 {
     private string _repoPath = string.Empty;
-    private string _mainBranch = "develop";
 
     public event EventHandler<GitCommandEventArgs>? GitCommandStarted;
     public event EventHandler<GitCommandEventArgs>? GitCommandFinished;
 
-    public void Configure(string repoPath, string mainBranch = "develop")
+    public void Configure(string repoPath)
     {
         _repoPath = repoPath;
-        _mainBranch = mainBranch;
     }
 
     public async Task Prepare()
@@ -30,20 +27,20 @@ public class GitService
         if (!Directory.Exists(gitFolder))
             throw new Exception("Not a valid Git repository.");
 
-        await RunGitCommandAsync("fetch");
+        await RunGitCommandAsync("fetch --all");
     }
 
-    public async Task<Status> GetStatus(string environment)
+    public async Task<Status> GetStatus(string environment, string branch)
     {
-        await RunGitCommandAsync("fetch --all");
+        //await RunGitCommandAsync("fetch --all");
 
-        var logOutput = await RunGitCommandAsync($"log {environment}..{_mainBranch} --pretty=format:%H|%ad|%an|%s --date=iso8601");
+        var logOutput = await RunGitCommandAsync($"log {environment}..{branch} --pretty=format:%H|%ad|%an|%s --date=iso8601");
 
         var currentCommitLog = await RunGitCommandAsync($"log -1 {environment} --pretty=format:%H|%ad|%an|%s --date=iso8601");
 
         var pendingCommits = logOutput
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => Commit.ParseCommit(line))
+            .Select(Commit.ParseCommit)
             .ToList();
 
         var currentCommit = string.IsNullOrWhiteSpace(currentCommitLog)
@@ -58,16 +55,16 @@ public class GitService
 
     }
 
-    public async Task<string> Deploy(string environment)
+    public async Task<string> Deploy(string environment, string branch)
     {
         await RunGitCommandAsync("fetch --all");
         await RunGitCommandAsync($"tag -d {environment}");
         await RunGitCommandAsync($"push origin :refs/tags/{environment}");
-        await RunGitCommandAsync($"tag {environment} {_mainBranch}");
+        await RunGitCommandAsync($"tag {environment} {branch}");
         await RunGitCommandAsync($"push origin {environment}");
 
         // Get the SHA of the head of the main branch
-        var sha = await RunGitCommandAsync($"rev-parse {_mainBranch}");
+        var sha = await RunGitCommandAsync($"rev-parse {branch}");
         return "Current sha: " + sha;
     }
 
@@ -114,24 +111,20 @@ public class GitService
     }
 }
 
-public class GitCommandEventArgs : EventArgs
+public class GitCommandEventArgs(string arguments, int? exitCode) : EventArgs
 {
-    public string Arguments { get; }
-    public int? ExitCode { get; }
-
-    public GitCommandEventArgs(string arguments, int? exitCode)
-    {
-        Arguments = arguments;
-        ExitCode = exitCode;
-    }
+    public string Arguments { get; } = arguments;
+    public int? ExitCode { get; } = exitCode;
 }
 
 public class Commit
 {
-    public string Hash { get; set; }
+    private Commit(){}
+
+    public required string Hash { get; set; }
     public DateTime Date { get; set; }
-    public string Author { get; set; }
-    public string Message { get; set; }
+    public required string Author { get; set; }
+    public required string Message { get; set; }
 
     public static Commit ParseCommit(string logLine)
     {
@@ -145,7 +138,7 @@ public class Commit
         };
 
         // Check if the message matches the pattern and add the link if it does
-        var match = Regex.Match(commit.Message, @"Merge pull request #(\d+) from drdk/feature/distributed-cache");
+        var match = Regex.Match(commit.Message, @"Merge pull request #(\d+) (.*)");
         if (!match.Success) return commit;
 
         var pullRequestNumber = match.Groups[1].Value;

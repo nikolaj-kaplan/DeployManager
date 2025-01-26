@@ -51,13 +51,13 @@
 
         </HorizontalStackLayout>
 
-        
-        <!-- Status Output -->
-        <ScrollView>
-            <Label x:Name="StatusEditor"
-                   TextType="Html"
-                   FontFamily="Consolas"
-                   HeightRequest="300" />
+
+        <ScrollView HeightRequest="300">
+            <Border BackgroundColor="Black"  Padding="0">
+                <WebView x:Name="StatusEditor"
+                         Navigating="StatusEditor_Navigating"
+                         Source="about:blank" />
+            </Border>
         </ScrollView>
         </VerticalStackLayout>
 </ContentPage>
