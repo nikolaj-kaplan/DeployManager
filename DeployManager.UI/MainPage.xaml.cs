@@ -192,7 +192,7 @@ namespace DeployManager.UI
                 var branch = BranchNameEntry.Text;
 
                 await _gitService.Deploy(environment, branch);
-                AppendToStatusEditor($"<p>Deploy to {environment} completed.</p>");
+                AppendToStatusEditor($"<p>Deploy to {environment} has been started. Check circleci and argocd for progress</p>");
             }
             catch (Exception ex)
             {

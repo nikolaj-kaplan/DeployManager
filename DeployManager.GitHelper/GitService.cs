@@ -57,7 +57,6 @@ public class GitService
 
     public async Task<string> Deploy(string environment, string branch)
     {
-        await RunGitCommandAsync("fetch --all");
         await RunGitCommandAsync($"tag -d {environment}");
         await RunGitCommandAsync($"push origin :refs/tags/{environment}");
         await RunGitCommandAsync($"tag {environment} {branch}");
