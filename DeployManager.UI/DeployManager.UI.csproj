@@ -53,4 +53,8 @@
   <ItemGroup>
     <ProjectReference Include="..\DeployManager.GitHelper\DeployManager.GitHelper.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="release\" />
+  </ItemGroup>
 </Project>
