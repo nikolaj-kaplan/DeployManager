@@ -66,10 +66,7 @@
         </Border>
       </ScrollView>
 
-        <TextBlock>
-            <Hyperlink NavigateUri="{Binding ConfigFilePath}" RequestNavigate="Hyperlink_RequestNavigate">
-                <Run Text="{Binding ConfigFilePath}" />
-            </Hyperlink>
-        </TextBlock>
+<Editor x:Name="ConfigPathTextBox" IsReadOnly="True" ></Editor>
+
     </VerticalStackLayout>
 </ContentPage>

@@ -9,8 +9,6 @@ namespace DeployManager.UI
         private readonly GitService _gitService;
         private ConfigService _configService;
 
-        public string ConfigFilePath => ConfigService.ConfigFilePath;
-
         public MainPage(GitService gitService, ConfigService configService)
         {
             InitializeComponent();
@@ -34,6 +32,7 @@ namespace DeployManager.UI
             };
             // Load configuration on startup
             LoadConfiguration();
+            ConfigPathTextBox.Text = ConfigService.ConfigFilePath;  
         }
 
         private void LoadConfiguration()
@@ -168,12 +167,6 @@ namespace DeployManager.UI
             {
                 AppendToWebView(StatusEditor, $"<p>{ex.Message}</p>");
             }
-        }
-
-        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
-        {
-            string folderPath = System.IO.Path.GetDirectoryName(e.Uri.LocalPath);
-            Process.Start("explorer.exe", folderPath);
         }
 
         private void UpdateGitService(object sender, EventArgs e)
