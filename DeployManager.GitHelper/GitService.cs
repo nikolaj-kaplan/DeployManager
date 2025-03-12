@@ -5,38 +5,51 @@ namespace DeployManager.GitHelper;
 
 public class GitService
 {
-    private string _repoPath = string.Empty;
-
     public event EventHandler<GitCommandEventArgs>? GitCommandStarted;
     public event EventHandler<GitCommandEventArgs>? GitCommandFinished;
 
-    public void Configure(string repoPath)
-    {
-        _repoPath = repoPath;
-    }
+    public string? RepoPath { get; set; }
+    public string? Branch { get; set; }
+    public string? Environment { get; set; }
 
     public async Task Prepare()
     {
-        if (string.IsNullOrWhiteSpace(_repoPath))
+        if (string.IsNullOrWhiteSpace(RepoPath))
             throw new Exception("Repo path not set.");
 
-        if (!Directory.Exists(_repoPath))
-            throw new Exception($"Repo path does not exist: {_repoPath}");
+        if (!Directory.Exists(RepoPath))
+            throw new Exception($"Repo path does not exist: {RepoPath}");
 
-        var gitFolder = Path.Combine(_repoPath, ".git");
+        var gitFolder = Path.Combine(RepoPath, ".git");
         if (!Directory.Exists(gitFolder))
             throw new Exception("Not a valid Git repository.");
 
+        // Fetch all branches and tags
         await RunGitCommandAsync("fetch --all");
+        await RunGitCommandAsync("fetch --tags --force");
+
+        // Check if local branch exists
+        var localBranches = (await RunGitCommandAsync("branch --list")).Split("\n\r ".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+        if (!localBranches.Contains(Branch))
+        {
+            // Checkout new branch tracking remote
+            await RunGitCommandAsync($"checkout -b {Branch} origin/{Branch}");
+        }
+        else
+        {
+            // Switch to existing branch
+            await RunGitCommandAsync($"checkout {Branch}");
+        }
+
+        // Pull latest changes
+        await RunGitCommandAsync("pull");
     }
 
-    public async Task<Status> GetStatus(string environment, string branch)
+    public async Task<Status> GetStatus()
     {
-        //await RunGitCommandAsync("fetch --all");
+        var logOutput = await RunGitCommandAsync($"log {Environment}..{Branch} --pretty=format:%H|%ad|%an|%s --date=iso8601");
 
-        var logOutput = await RunGitCommandAsync($"log {environment}..{branch} --pretty=format:%H|%ad|%an|%s --date=iso8601");
-
-        var currentCommitLog = await RunGitCommandAsync($"log -1 {environment} --pretty=format:%H|%ad|%an|%s --date=iso8601");
+        var currentCommitLog = await RunGitCommandAsync($"log -1 {Environment} --pretty=format:%H|%ad|%an|%s --date=iso8601");
 
         var pendingCommits = logOutput
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -55,15 +68,15 @@ public class GitService
 
     }
 
-    public async Task<string> Deploy(string environment, string branch)
+    public async Task<string> Deploy()
     {
-        await RunGitCommandAsync($"tag -d {environment}");
-        await RunGitCommandAsync($"push origin :refs/tags/{environment}");
-        await RunGitCommandAsync($"tag {environment} {branch}");
-        await RunGitCommandAsync($"push origin {environment}");
+        await RunGitCommandAsync($"tag -d {Environment}");
+        await RunGitCommandAsync($"push origin :refs/tags/{Environment}");
+        await RunGitCommandAsync($"tag {Environment} {Branch}");
+        await RunGitCommandAsync($"push origin {Environment}");
 
         // Get the SHA of the head of the main branch
-        var sha = await RunGitCommandAsync($"rev-parse {branch}");
+        var sha = await RunGitCommandAsync($"rev-parse {Branch}");
         return "Current sha: " + sha;
     }
 
@@ -79,7 +92,7 @@ public class GitService
             RedirectStandardError = true,
             CreateNoWindow = true,
             UseShellExecute = false,
-            WorkingDirectory = _repoPath
+            WorkingDirectory = RepoPath
         };
 
         using var process = new Process();

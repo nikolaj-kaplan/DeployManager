@@ -14,26 +14,26 @@ namespace DeployManager.UI
             _gitService = gitService;
             _configService = configService;
 
+            AppendToWebView(GitCommands, "");
+            AppendToWebView(StatusEditor, "");
+
             _gitService.GitCommandStarted += (_, args) =>
             {
-                AppendToStatusEditor($"<br/>&gt; git {args.Arguments}...");
+                AppendToWebView(GitCommands, $"<br/>&gt; git {args.Arguments}...");
                 ActivityIndicator.IsRunning = true;
                 ActivityIndicator.IsVisible = true;
             };
             _gitService.GitCommandFinished += (_, args) =>
             {
-                AppendToStatusEditor($"&nbsp;{(args.ExitCode == 0 ? "ok." : "error.")}");
+                AppendToWebView(GitCommands, $"&nbsp;{(args.ExitCode == 0 ? "ok." : "error.")}");
                 ActivityIndicator.IsRunning = false;
                 ActivityIndicator.IsVisible = false;
             };
             // Load configuration on startup
-            LoadConfigurationAsync();
-
-            // Disable buttons if invalid configuration
-            _ = ValidateInputsAsync();
+            LoadConfiguration();
         }
 
-        private async void LoadConfigurationAsync()
+        private void LoadConfiguration()
         {
             _configService = ConfigService.LoadConfig();
 
@@ -44,21 +44,6 @@ namespace DeployManager.UI
             if (!string.IsNullOrEmpty(_configService.SelectedEnvironment))
             {
                 EnvironmentPicker.SelectedItem = _configService.SelectedEnvironment;
-            }
-
-            if (!string.IsNullOrWhiteSpace(_configService.RepoPath))
-            {
-                _gitService.Configure(_configService.RepoPath);
-                try
-                {
-                    AppendToStatusEditor("<p>validating...</p>", true);
-                    await _gitService.Prepare();
-                    AppendToStatusEditor("<p>Repository is valid.</p>");
-                }
-                catch (Exception ex)
-                {
-                    AppendToStatusEditor($"<p>{ex.Message}</p>, true");
-                }
             }
         }
 
@@ -73,43 +58,17 @@ namespace DeployManager.UI
             _configService.SaveConfig();
         }
 
-        private async Task ValidateInputsAsync()
-        {
-            AppendToStatusEditor("<p>validating...</p>", true);
-
-            var repoPathValid = !string.IsNullOrWhiteSpace(RepoPathEntry.Text);
-            var branchNameValid = !string.IsNullOrWhiteSpace(BranchNameEntry.Text);
-            var environmentSelected = EnvironmentPicker.SelectedItem != null;
-
-            // Validate the repository path by calling GitService.Prepare
-            if (repoPathValid && branchNameValid)
-            {
-                try
-                {
-                    _gitService.Configure(RepoPathEntry.Text);
-                    await _gitService.Prepare();
-                    AppendToStatusEditor("<p>Repository is valid.</p>", true);
-                }
-                catch (Exception ex)
-                {
-                    AppendToStatusEditor($"<p>{ex.Message}</p>", true);
-                    repoPathValid = false;
-                }
-            }
-
-            GetStatusButton.IsEnabled = repoPathValid && environmentSelected;
-            DeployButton.IsEnabled = repoPathValid && environmentSelected;
-        }
-
         private async void OnGetStatusClicked(object sender, EventArgs e)
         {
             try
             {
-                AppendToStatusEditor("<p>Getting status...</p>", true);
-                await _gitService.Prepare();
+                AppendToWebView(GitCommands, "", true);
+                AppendToWebView(StatusEditor, "<p>Getting status...</p>", true);
                 var environment = EnvironmentPicker.SelectedItem.ToString()!;
                 var branch = BranchNameEntry.Text;
-                var status = await _gitService.GetStatus(environment, branch);
+                await _gitService.Prepare();
+
+                var status = await _gitService.GetStatus();
 
                 var statusBuilder = new StringBuilder();
 
@@ -138,11 +97,11 @@ namespace DeployManager.UI
                     statusBuilder.AppendLine($"<p><strong>All commits are deployed. The environment \"{environment}\" is up to date based on the branch \"{branch}\"</strong></p>");
                 }
 
-                AppendToStatusEditor(statusBuilder.ToString(), true);
+                AppendToWebView(StatusEditor, statusBuilder.ToString(), true);
             }
             catch (Exception ex)
             {
-                AppendToStatusEditor($"<p>{ex.Message}</p>");
+                AppendToWebView(StatusEditor, $"<p>{ex.Message}</p>");
             }
         }
 
@@ -186,65 +145,45 @@ namespace DeployManager.UI
         {
             try
             {
-                AppendToStatusEditor("<p>Deploying...</p>", true);
-                await _gitService.Prepare();
+                AppendToWebView(GitCommands, "", true);
+                AppendToWebView(StatusEditor, "<p>Deploying...</p>", true);
                 var environment = EnvironmentPicker.SelectedItem.ToString()!;
                 var branch = BranchNameEntry.Text;
 
-                await _gitService.Deploy(environment, branch);
-                AppendToStatusEditor($"<p>Deploy to {environment} has been started. Check circleci and argocd for progress</p>");
-            }
-            catch (Exception ex)
-            {
-                AppendToStatusEditor($"<p>{ex.Message}</p>");
-            }
-        }
-
-        private async void RepoPathEntry_Unfocused(object sender, FocusEventArgs e)
-        {
-            AppendToStatusEditor("<p>validating...</p>", true);
-            _gitService.Configure(RepoPathEntry.Text);
-
-            try
-            {
                 await _gitService.Prepare();
-                AppendToStatusEditor("<p>Repository is valid.</p>");
+
+                await _gitService.Deploy();
+                AppendToWebView(StatusEditor, $"<p>Deploy to {environment} has been started. Check circleci and argocd for progress</p>");
             }
             catch (Exception ex)
             {
-                AppendToStatusEditor($"<p>{ex.Message}</p>");
+                AppendToWebView(StatusEditor, $"<p>{ex.Message}</p>");
             }
-
-            SaveConfiguration();
-            await ValidateInputsAsync();
         }
 
-        private async void BranchNameEntry_Unfocused(object sender, FocusEventArgs e)
+        private void UpdateGitService(object sender, EventArgs e)
         {
-            SaveConfiguration();
-            await ValidateInputsAsync();
+            _gitService.RepoPath = RepoPathEntry.Text;
+            _gitService.Branch = BranchNameEntry.Text;
+            _gitService.Environment = EnvironmentPicker.SelectedItem.ToString();
         }
 
-        private async void EnvironmentPicker_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            SaveConfiguration();
-            await ValidateInputsAsync();
-        }
 
-        private void AppendToStatusEditor(string htmlContent, bool clear = false)
+        private void AppendToWebView(WebView webView, string htmlContent, bool clear = false)
         {
             const string baseHtml = "<html><head><style>body { font-family: monospace; }</style></head><body></body></html>";
 
-            if (clear || StatusEditor.Source is not HtmlWebViewSource htmlSource)
+            if (clear || webView.Source is not HtmlWebViewSource htmlSource)
             {
-                StatusEditor.Source = new HtmlWebViewSource { Html = baseHtml.Replace("</body>", htmlContent + "</body>") };
+                webView.Source = new HtmlWebViewSource { Html = baseHtml.Replace("</body>", htmlContent + "</body>") };
                 return;
             }
 
             var currentHtml = htmlSource.Html ?? baseHtml;
             var updatedHtml = currentHtml.Replace("</body>", htmlContent + "</body>");
-            StatusEditor.Source = new HtmlWebViewSource { Html = updatedHtml };
+            webView.Source = new HtmlWebViewSource { Html = updatedHtml };
         }
+
 
         protected override void OnDisappearing()
         {

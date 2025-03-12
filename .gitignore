@@ -6,3 +6,5 @@ bin/
 obj/
 
 DeployManager.UI/DeployManager.UI.csproj.SdkResolver.-1977008478.proj.Backup.tmp
+
+git-checkout

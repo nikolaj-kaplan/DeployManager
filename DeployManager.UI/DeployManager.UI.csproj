@@ -46,6 +46,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="release\**" />
+    <EmbeddedResource Remove="release\**" />
+    <MauiCss Remove="release\**" />
+    <MauiXaml Remove="release\**" />
+    <None Remove="release\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
   </ItemGroup>
@@ -55,6 +63,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="release\" />
+    <PRIResource Remove="release\**" />
   </ItemGroup>
 </Project>

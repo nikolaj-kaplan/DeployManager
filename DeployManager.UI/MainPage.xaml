@@ -3,20 +3,26 @@
              x:Class="DeployManager.UI.MainPage">
     <VerticalStackLayout Padding="20" Spacing="20">
 
+
+      <HorizontalStackLayout Spacing="10">
+
         <!-- Repository Path -->
         <VerticalStackLayout Spacing="5">
-            <Label Text="Repository Path:" />
-            <Entry x:Name="RepoPathEntry"
-                   Placeholder="Enter Git repository path"
-                   Unfocused="RepoPathEntry_Unfocused" />
+          <Label Text="Repository Path:" />
+          <Entry x:Name="RepoPathEntry"
+                 WidthRequest="350"
+                 Placeholder="Enter Git repository path"
+                 Unfocused="UpdateGitService" 
+                 />
         </VerticalStackLayout>
 
         <!-- Branch Name -->
         <VerticalStackLayout Spacing="5">
-            <Label Text="Branch Name:" />
-            <Entry x:Name="BranchNameEntry"
-                   Placeholder="Enter Git branch name"
-                   Unfocused="BranchNameEntry_Unfocused" />
+          <Label Text="Branch Name:" />
+          <Entry x:Name="BranchNameEntry"
+                  WidthRequest="350"
+                 Placeholder="Enter Git branch name"
+                 Unfocused="UpdateGitService" />
         </VerticalStackLayout>
 
         <!-- Environment Picker -->
@@ -24,15 +30,16 @@
                 Title="Select environment"
                 WidthRequest="200"
                 SelectedIndex="0"
-                SelectedIndexChanged="EnvironmentPicker_SelectedIndexChanged">
-            <Picker.Items>
-                <x:String>dev-test</x:String>
-                <x:String>traffic-test</x:String>
-                <x:String>test</x:String>
-                <x:String>preprod</x:String>
-                <x:String>prod</x:String>
-            </Picker.Items>
+                SelectedIndexChanged="UpdateGitService">
+          <Picker.Items>
+            <x:String>dev-test</x:String>
+            <x:String>traffic-test</x:String>
+            <x:String>test</x:String>
+            <x:String>preprod</x:String>
+            <x:String>prod</x:String>
+          </Picker.Items>
         </Picker>
+      </HorizontalStackLayout>
 
         <!-- Buttons -->
         <HorizontalStackLayout Spacing="10">
@@ -59,5 +66,12 @@
                          Source="about:blank" />
             </Border>
         </ScrollView>
-        </VerticalStackLayout>
+
+      <ScrollView HeightRequest="300">
+        <Border BackgroundColor="Black"  Padding="0">
+          <WebView x:Name="GitCommands" />
+        </Border>
+      </ScrollView>
+
+    </VerticalStackLayout>
 </ContentPage>
