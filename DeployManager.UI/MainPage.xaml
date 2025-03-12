@@ -31,13 +31,6 @@
                 WidthRequest="200"
                 SelectedIndex="0"
                 SelectedIndexChanged="UpdateGitService">
-          <Picker.Items>
-            <x:String>dev-test</x:String>
-            <x:String>traffic-test</x:String>
-            <x:String>test</x:String>
-            <x:String>preprod</x:String>
-            <x:String>prod</x:String>
-          </Picker.Items>
         </Picker>
       </HorizontalStackLayout>
 
@@ -73,5 +66,10 @@
         </Border>
       </ScrollView>
 
+        <TextBlock>
+            <Hyperlink NavigateUri="{Binding ConfigFilePath}" RequestNavigate="Hyperlink_RequestNavigate">
+                <Run Text="{Binding ConfigFilePath}" />
+            </Hyperlink>
+        </TextBlock>
     </VerticalStackLayout>
 </ContentPage>

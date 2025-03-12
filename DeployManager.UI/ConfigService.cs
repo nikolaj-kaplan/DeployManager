@@ -5,11 +5,21 @@ namespace DeployManager.UI;
 public class ConfigService
 {
     private const string configFileName = "appsettings.json";
-    private static readonly string ConfigFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeployManager", configFileName);
+    public static readonly string ConfigFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeployManager", configFileName);
 
     public string RepoPath { get; set; } = string.Empty;
     public string BranchName { get; set; } = "main"; // Default branch name
     public string SelectedEnvironment { get; set; } = "test";
+
+    public string[] Environments { get; set; } =
+        {
+            "dev-test",
+            "traffic-test",
+            "test",
+            "training",
+            "preprod",
+            "prod",
+    };
 
     public static ConfigService LoadConfig()
     {

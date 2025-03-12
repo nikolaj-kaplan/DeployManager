@@ -1,4 +1,5 @@
 ﻿using DeployManager.GitHelper;
+using System.Diagnostics;
 using System.Text;
 
 namespace DeployManager.UI
@@ -7,6 +8,8 @@ namespace DeployManager.UI
     {
         private readonly GitService _gitService;
         private ConfigService _configService;
+
+        public string ConfigFilePath => ConfigService.ConfigFilePath;
 
         public MainPage(GitService gitService, ConfigService configService)
         {
@@ -39,6 +42,12 @@ namespace DeployManager.UI
 
             RepoPathEntry.Text = _configService.RepoPath;
             BranchNameEntry.Text = _configService.BranchName;
+
+            this.EnvironmentPicker.Items.Clear();
+            foreach(var env in _configService.Environments)
+            {
+                this.EnvironmentPicker.Items.Add(env);
+            }
 
             // Restore the selected environment
             if (!string.IsNullOrEmpty(_configService.SelectedEnvironment))
@@ -159,6 +168,12 @@ namespace DeployManager.UI
             {
                 AppendToWebView(StatusEditor, $"<p>{ex.Message}</p>");
             }
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            string folderPath = System.IO.Path.GetDirectoryName(e.Uri.LocalPath);
+            Process.Start("explorer.exe", folderPath);
         }
 
         private void UpdateGitService(object sender, EventArgs e)
